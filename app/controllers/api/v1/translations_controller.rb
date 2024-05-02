@@ -13,19 +13,22 @@ module Api
         render json: @translation
       end
 
-      def create
-        @translation = @media_item.translations.new(translation_params)
+# POST /api/v1/media_items/:media_item_id/translations
+def create
+  # Find any existing translation and destroy it if it exists
+  existing_translation = @media_item.translations.first
+  existing_translation&.destroy
 
-        if translation_params[:array_of_objects]
-          @translation.array_of_objects = translation_params[:array_of_objects]
-        end
+  # Create a new translation with the new data
+  @translation = @media_item.translations.new(translation_params)
 
-        if @translation.save
-          render json: @translation, status: :created
-        else
-          render json: @translation.errors, status: :unprocessable_entity
-        end
-      end
+  if @translation.save
+    render json: @translation, status: :created
+  else
+    render json: @translation.errors, status: :unprocessable_entity
+  end
+end
+
 
       def update
         if @translation.update(translation_params)
