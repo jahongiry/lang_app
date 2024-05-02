@@ -4,71 +4,113 @@ module Api
       before_action :authorize_teacher, only: [:create, :update, :destroy]
       before_action :set_lesson, only: [:show, :destroy, :update]
 
-      # GET /api/v1/lessons
-      def index
-        @lessons = Lesson.all
-        render json: @lessons
-      end
+# GET /api/v1/lessons
+def index
+  lessons = Lesson.includes(:media_items, text_question_sets: :questions).all
 
-      # GET /api/v1/lessons/:id
-        def show
-  lesson = Lesson.includes(:media_items, :text_question_sets).find(params[:id])
-
-  # Get the latest media_item (if any)
-  latest_media_item = lesson.media_items.order(created_at: :desc).first
-
-  # Get the latest text_question_set (if any)
-  latest_text_question_set = lesson.text_question_sets.order(created_at: :desc).first
-
-  # Assemble the response JSON from the lesson attributes
-  response = lesson.as_json
-
-  # Format the latest media_item as an object
-  if latest_media_item
-    response['media_item'] = {
-      id: latest_media_item.id,
-      media_type: latest_media_item.media_type,
-      media_link: latest_media_item.media_link,
-      translations: latest_media_item.translations.map { |translation| translation.array_of_objects },
-      multiple_questions: latest_media_item.multiple_questions.map do |question|
-        {
-          id: question.id,
-          content: question.content,
-          answers: question.answers.map do |answer|
-            {
-              id: answer.id,
-              content: answer.content,
-              correct: answer.correct
-              # Include other attributes you want from answers
-            }
-          end
+  response = lessons.map do |lesson|
+    lesson_data = lesson.as_json(include: {
+      media_items: { 
+        include: { multiple_questions: { include: :answers } }
+      }, 
+      text_question_sets: {
+        include: { 
+          questions: {
+            only: [:id, :text]
+          }
         }
-      end
-    }
-  else
-    response['media_item'] = {}
+      }
+    })
+
+    # Sort and take the latest media item
+    latest_media_item = lesson.media_items.order(updated_at: :desc).first
+
+    # Assuming multiple_questions also need to be in the latest media item
+    latest_media_item_data = latest_media_item.as_json(include: {
+      multiple_questions: {
+        include: :answers
+      }
+    })
+
+    # Replace media_items array with a single latest media item object
+    lesson_data['media_items'] = latest_media_item_data
+
+    # Calculate and format test results and user answers
+    multiple_question_ids = [latest_media_item].pluck(:id) # changed to an array containing only the latest
+    test_results = TestResult.where(user_id: current_user.id, multiple_question_id: multiple_question_ids)
+    user_answers = UserAnswer.where(user_id: current_user.id, question_id: lesson.text_question_sets.flat_map(&:question_ids))
+
+    lesson_data['test_results'] = test_results.map do |result|
+      {
+        multiple_question_id: result.multiple_question_id,
+        correct_percentage: result.correct_percentage,
+        wrong_percentage: result.wrong_percentage
+      }
+    end
+
+    lesson_data['user_answers_scores'] = user_answers.includes(:answer_feedbacks).map do |answer|
+      {
+        question_id: answer.question_id,
+        score: answer.answer_feedbacks.sum(&:score),
+        comments: answer.answer_feedbacks.map(&:comment)
+      }
+    end
+
+    lesson_data
   end
 
-  # Format the latest text_question_set as an object
-  if latest_text_question_set
-    response['text_question_set'] = {
-      id: latest_text_question_set.id,
-      text: latest_text_question_set.text,
-      questions: latest_text_question_set.questions.map do |question|
-        {
-          id: question.id,
-          text: question.text
-          # Include other attributes you want from questions
-        }
-      end
-    }
-  else
-    response['text_question_set'] = {}
-  end
-
-  # Render the modified response JSON
   render json: response
 end
+
+
+
+
+    # GET /api/v1/lessons/:id
+def show
+  lesson = Lesson.includes(media_items: {multiple_questions: :answers}, text_question_sets: :questions).find(params[:id])
+
+  response = lesson.as_json(include: { 
+    text_question_sets: {
+      include: { 
+        questions: {
+          only: [:id, :text]
+        }
+      }
+    }
+  })
+
+  # Include only the latest media item
+  latest_media_item = lesson.media_items.order(updated_at: :desc).first
+  response['media_items'] = latest_media_item.as_json(include: {
+    multiple_questions: {
+      include: :answers
+    }
+  })
+
+  # Test results and scores
+  test_results = TestResult.where(user_id: current_user.id, multiple_question_id: [latest_media_item].pluck(:id))
+  user_answers = UserAnswer.where(user_id: current_user.id, question_id: lesson.text_question_sets.flat_map(&:question_ids))
+
+  response['test_results'] = test_results.map do |result|
+    {
+      multiple_question_id: result.multiple_question_id,
+      correct_percentage: result.correct_percentage,
+      wrong_percentage: result.wrong_percentage
+    }
+  end
+
+  response['user_answers_scores'] = user_answers.includes(:answer_feedbacks).map do |answer|
+    {
+      question_id: answer.question_id,
+      score: answer.answer_feedbacks.sum(&:score),
+      comments: answer.answer_feedbacks.map(&:comment)
+    }
+  end
+
+  render json: response
+end
+
+
 
 
       # POST /api/v1/lessons
