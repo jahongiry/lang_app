@@ -4,19 +4,28 @@ module Api
       before_action :set_lesson
       before_action :set_media_item, only: [:show, :update, :destroy]
 
-      def index
-        @media_items = @lesson.media_items.map do |media_item|
+def index
+        @lessons = Lesson.includes(:media_items).map do |lesson|
           {
-            id: media_item.id,
-            lesson_id: media_item.lesson_id,
-            media_type: media_item.media_type,
-            media_link: url_for(media_item.media_link), 
-            created_at: media_item.created_at,
-            updated_at: media_item.updated_at
+            id: lesson.id,
+            title: lesson.title,
+            description: lesson.description,
+            media_items: lesson.media_items.map do |media_item|
+              next if media_item.nil?
+              {
+                id: media_item.id,
+                lesson_id: media_item.lesson_id,
+                media_type: media_item.media_type,
+                media_link: media_item.media_link.present? ? url_for(media_item.media_link) : nil,
+                created_at: media_item.created_at,
+                updated_at: media_item.updated_at
+              }
+            end.compact
           }
         end
-        render json: @media_items
+        render json: @lessons
       end
+
 
       # GET /api/v1/lessons/:lesson_id/media_items/:id
       def show

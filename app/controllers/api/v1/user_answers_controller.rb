@@ -3,6 +3,21 @@ module Api
     class UserAnswersController < ApplicationController
       before_action :set_user_answer, only: [:show, :update, :destroy]
 
+    # GET /api/v1/user_answers/user_scores
+      def user_scores
+        # Fetch all user answers for the current user along with their feedbacks
+        user_answers = UserAnswer.includes(:answer_feedbacks).where(user_id: current_user.id)
+
+        # Extract scores from feedbacks
+        scores = user_answers.flat_map { |ua| ua.answer_feedbacks.map(&:score) }
+
+        # Calculate the average score
+        average_score = scores.empty? ? 0 : scores.sum.to_f / scores.size
+
+        # Return scores and the average score
+        render json: { scores: scores, average_score: average_score }
+      end
+
       # POST /api/v1/user_answers
       def create
         @user_answer = current_user.user_answers.build(user_answer_params)

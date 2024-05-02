@@ -19,8 +19,11 @@ Rails.application.routes.draw do
 
       resources :user_answers do
         resource :answer_feedback, only: [:create, :update]
+        collection do
+          get 'user_scores', to: 'user_answers#user_scores'
+        end
       end
-      
+
       post '/login', to: 'sessions#create'
 
       # Adding specific routes for creating answers directly under a multiple_question
