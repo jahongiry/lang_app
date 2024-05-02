@@ -11,8 +11,7 @@ module Api
       end
 
       # GET /api/v1/lessons/:id
-def show
-  # Find the lesson including the latest media_item and text_question_set
+        def show
   lesson = Lesson.includes(:media_items, :text_question_sets).find(params[:id])
 
   # Get the latest media_item (if any)
@@ -24,14 +23,14 @@ def show
   # Assemble the response JSON from the lesson attributes
   response = lesson.as_json
 
-  # Replace media_items array with detailed information of each media_item
-  detailed_media_items = lesson.media_items.map do |media_item|
-    {
-      id: media_item.id,
-      media_type: media_item.media_type,
-      media_link: media_item.media_link,
-      translations: media_item.translations.map { |translation| translation.array_of_objects },
-      multiple_questions: media_item.multiple_questions.map do |question|
+  # Format the latest media_item as an object
+  if latest_media_item
+    response['media_item'] = {
+      id: latest_media_item.id,
+      media_type: latest_media_item.media_type,
+      media_link: latest_media_item.media_link,
+      translations: latest_media_item.translations.map { |translation| translation.array_of_objects },
+      multiple_questions: latest_media_item.multiple_questions.map do |question|
         {
           id: question.id,
           content: question.content,
@@ -46,14 +45,16 @@ def show
         }
       end
     }
+  else
+    response['media_item'] = {}
   end
 
-  # Replace text_question_sets array with detailed information of each text_question_set
-  detailed_text_question_sets = lesson.text_question_sets.map do |text_question_set|
-    {
-      id: text_question_set.id,
-      text: text_question_set.text,
-      questions: text_question_set.questions.map do |question|
+  # Format the latest text_question_set as an object
+  if latest_text_question_set
+    response['text_question_set'] = {
+      id: latest_text_question_set.id,
+      text: latest_text_question_set.text,
+      questions: latest_text_question_set.questions.map do |question|
         {
           id: question.id,
           text: question.text
@@ -61,15 +62,14 @@ def show
         }
       end
     }
+  else
+    response['text_question_set'] = {}
   end
-
-  # Replace media_items and text_question_sets arrays in the response
-  response['media_items'] = detailed_media_items
-  response['text_question_sets'] = detailed_text_question_sets
 
   # Render the modified response JSON
   render json: response
 end
+
 
       # POST /api/v1/lessons
       def create
