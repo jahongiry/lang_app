@@ -64,9 +64,14 @@ end
 
 
 
-    # GET /api/v1/lessons/:id
+   # GET /api/v1/lessons/:id
 def show
-  lesson = Lesson.includes(media_items: {multiple_questions: :answers}, text_question_sets: :questions).find(params[:id])
+  lesson = Lesson.includes(media_items: { multiple_questions: :answers, translations: {} }, text_question_sets: :questions).find_by(id: params[:id])
+
+  unless lesson
+    render json: { error: 'Lesson not found' }, status: :not_found
+    return
+  end
 
   response = lesson.as_json(include: { 
     text_question_sets: {
@@ -78,13 +83,18 @@ def show
     }
   })
 
-  # Include only the latest media item
+  # Include only the latest media item and its translations
   latest_media_item = lesson.media_items.order(updated_at: :desc).first
-  response['media_items'] = latest_media_item.as_json(include: {
-    multiple_questions: {
-      include: :answers
-    }
-  })
+  if latest_media_item
+    response['media_items'] = latest_media_item.as_json(include: {
+      multiple_questions: {
+        include: :answers
+      },
+      translations: {}
+    })
+  else
+    response['media_items'] = {}  # Return an empty object if no media items are found
+  end
 
   # Test results and scores
   test_results = TestResult.where(user_id: current_user.id, multiple_question_id: [latest_media_item].pluck(:id))
@@ -108,6 +118,7 @@ def show
 
   render json: response
 end
+
 
 
 
