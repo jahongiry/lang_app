@@ -1,4 +1,16 @@
-ActiveRecord::Schema[7.0].define(version: 2024_03_24_094456) do
+# This file is auto-generated from the current state of the database. Instead
+# of editing this file, please use the migrations feature of Active Record to
+# incrementally modify your database, and then regenerate this schema definition.
+#
+# This file is the source Rails uses to define your schema when running `bin/rails
+# db:schema:load`. When creating a new database, `bin/rails db:schema:load` tends to
+# be faster and is potentially less error prone than running all of your
+# migrations from scratch. Old migrations may fail to apply correctly if those
+# migrations use external dependencies or application code.
+#
+# It's strongly recommended that you check this file into your version control system.
+
+ActiveRecord::Schema[7.0].define(version: 2024_05_02_185518) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -36,6 +48,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_24_094456) do
     t.bigint "user_answer_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "details"
     t.index ["user_answer_id"], name: "index_answer_feedbacks_on_user_answer_id"
   end
 
@@ -84,6 +97,19 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_24_094456) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["text_question_set_id"], name: "index_questions_on_text_question_set_id"
+  end
+
+  create_table "test_results", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "multiple_question_id", null: false
+    t.integer "correct_count"
+    t.integer "total_questions"
+    t.float "correct_percentage"
+    t.float "wrong_percentage"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["multiple_question_id"], name: "index_test_results_on_multiple_question_id"
+    t.index ["user_id"], name: "index_test_results_on_user_id"
   end
 
   create_table "text_question_sets", force: :cascade do |t|
@@ -135,6 +161,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_24_094456) do
   add_foreign_key "media_items", "lessons"
   add_foreign_key "multiple_questions", "media_items"
   add_foreign_key "questions", "text_question_sets"
+  add_foreign_key "test_results", "multiple_questions"
+  add_foreign_key "test_results", "users"
   add_foreign_key "text_question_sets", "lessons"
   add_foreign_key "translations", "media_items"
   add_foreign_key "user_answers", "questions"

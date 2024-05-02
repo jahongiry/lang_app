@@ -84,13 +84,33 @@ module Api
       end
 
       # PATCH/PUT /api/v1/lessons/:lesson_id/media_items/:id
-      def update
-        if @media_item.update(media_item_params)
-          render json: @media_item
-        else
-          render json: @media_item.errors, status: :unprocessable_entity
-        end
-      end
+def update
+  if params[:media_item][:media_type] == 'link'
+    # Update media_item as a link
+    successful_update = @media_item.update(media_type: 'link', media_link: params[:media_item][:media_link])
+  elsif params[:media_item][:media_type] == 'image'
+    # Handle updating an image
+    uploaded_file = params[:media_item][:media_link]
+    if uploaded_file
+      # Save the uploaded file and store its URL in media_link
+      updated_link = save_uploaded_file(uploaded_file)
+      successful_update = @media_item.update(media_type: 'image', media_link: updated_link)
+    else
+      render json: { error: 'Image file is required' }, status: :unprocessable_entity
+      return
+    end
+  else
+    render json: { error: 'Invalid media type' }, status: :unprocessable_entity
+    return
+  end
+
+  if successful_update
+    render json: @media_item
+  else
+    render json: @media_item.errors, status: :unprocessable_entity
+  end
+end
+
 
       # DELETE /api/v1/lessons/:lesson_id/media_items/:id
       def destroy
