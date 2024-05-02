@@ -1,5 +1,3 @@
-# db/seeds.rb
-
 # Ensure there's at least one user in the database
 user = User.first || User.create!(email: 'user@example.com', password: 'password', name: 'John', surname: 'Doe', teacher: true)
 
@@ -19,10 +17,27 @@ media_item1 = MediaItem.create!(
   media_link: "https://example.com/video.mp4"
 )
 
-media_item2 = MediaItem.create!(
-  lesson: lesson,
-  media_type: "image",
-  media_link: "https://example.com/image.jpg"
+# Create multiple questions with answers for the first media item
+MultipleQuestion.create!(
+  media_item: media_item1,
+  content: "What are the main organelles of a plant cell?",
+  answers_attributes: [
+    { content: "Nucleus", correct: false },
+    { content: "Mitochondria", correct: false },
+    { content: "Chloroplast", correct: true },
+    { content: "Cell wall", correct: false }
+  ]
+)
+
+MultipleQuestion.create!(
+  media_item: media_item1,
+  content: "What is the role of mitochondria?",
+  answers_attributes: [
+    { content: "Protein synthesis", correct: false },
+    { content: "Photosynthesis", correct: false },
+    { content: "Energy production", correct: true },
+    { content: "DNA replication", correct: false }
+  ]
 )
 
 # Create text question sets for the lesson
@@ -43,4 +58,3 @@ Question.create!(
 )
 
 puts "Seeds created successfully!"
-
