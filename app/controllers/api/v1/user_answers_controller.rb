@@ -23,7 +23,7 @@ module Api
       private
 
       def evaluate_english(question, user_answer)
-        api_key = ENV['OPENAI_API_KEY']
+        api_key = ENV['GPT_TOKEN']
         open_ai_service = OpenAIService.new(api_key)
         response = open_ai_service.evaluate_english(question.text, user_answer.text)
         Rails.logger.info "OpenAI API response: #{response.inspect}"
