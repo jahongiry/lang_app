@@ -65,23 +65,20 @@ end
 
 
    # GET /api/v1/lessons/:id
+# GET /api/v1/lessons/:id
 def show
-  lesson = Lesson.includes(media_items: { multiple_questions: :answers, translations: {} }, text_question_sets: :questions).find_by(id: params[:id])
+  lesson = Lesson.includes(media_items: { multiple_questions: :answers, translations: {} }, text_question_sets: { questions: {} }).find_by(id: params[:id])
 
   unless lesson
     render json: { error: 'Lesson not found' }, status: :not_found
     return
   end
 
-  response = lesson.as_json(include: { 
-    text_question_sets: {
-      include: { 
-        questions: {
-          only: [:id, :text]
-        }
-      }
-    }
-  })
+  response = {
+    id: lesson.id,
+    title: lesson.title,
+    description: lesson.description
+  }
 
   # Include only the latest media item and its translations
   latest_media_item = lesson.media_items.order(updated_at: :desc).first
@@ -96,9 +93,21 @@ def show
     response['media_items'] = {}  # Return an empty object if no media items are found
   end
 
+  # Include only the latest text_question_set and its questions
+  latest_text_question_set = lesson.text_question_sets.order(updated_at: :desc).first
+  if latest_text_question_set
+    response['text_question_sets'] = {
+      id: latest_text_question_set.id,
+      text: latest_text_question_set.text,
+      questions: latest_text_question_set.questions.as_json(only: [:id, :text])
+    }
+  else
+    response['text_question_sets'] = {}  # Return an empty object if no text question sets are found
+  end
+
   # Test results and scores
-  test_results = TestResult.where(user_id: current_user.id, multiple_question_id: [latest_media_item].pluck(:id))
-  user_answers = UserAnswer.where(user_id: current_user.id, question_id: lesson.text_question_sets.flat_map(&:question_ids))
+  test_results = TestResult.where(user_id: current_user.id, multiple_question_id: latest_media_item&.multiple_questions&.pluck(:id))
+  user_answers = UserAnswer.where(user_id: current_user.id, question_id: latest_text_question_set&.questions&.pluck(:id))
 
   response['test_results'] = test_results.map do |result|
     {
@@ -118,6 +127,7 @@ def show
 
   render json: response
 end
+
 
 
 
