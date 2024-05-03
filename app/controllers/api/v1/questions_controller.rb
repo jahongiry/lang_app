@@ -34,11 +34,13 @@ module Api
         end
       end
 
-      # DELETE /api/v1/questions/:id
-      def destroy
-        @question.destroy
-        head :no_content
-      end
+# DELETE /api/v1/questions/:id
+def destroy
+  @question.user_answers.destroy_all  # Add this line to delete all associated answers
+  @question.destroy
+  head :no_content
+end
+
 
       private
 
