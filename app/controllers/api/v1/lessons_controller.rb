@@ -1,11 +1,12 @@
 module Api
-  module V1
-    class LessonsController < ApplicationController
-      before_action :authorize_teacher, only: [:create, :update, :destroy]
-      before_action :set_lesson, only: [:show, :destroy, :update]
+module V1
+class LessonsController < ApplicationController
+before_action :authorize_teacher, only: [:create, :update, :destroy]
+before_action :set_lesson, only: [:show, :destroy, :update]
 
-      # GET /api/v1/lessons
-      def index
+# GET /api/v1/lessons
+
+def index
         lessons = Lesson.includes(:media_items, text_question_sets: :questions).all
 
         response = lessons.map do |lesson|
@@ -64,39 +65,74 @@ module Api
 
         render json: response
       end
+# GET /api/v1/lessons/:id
 
-      # GET /api/v1/lessons/:id
-      def show
-        lesson = Lesson.includes(media_items: { multiple_questions: :answers }, text_question_sets: :questions).find_by(id: params[:id])
+# GET /api/v1/lessons/:id
 
-        unless lesson
-          render json: { error: 'Lesson not found' }, status: :not_found
-          return
-        end
+def show
+lesson = Lesson.includes(media_items: { multiple_questions: :answers, translations: {} }, text_question_sets: { questions: {} }).find_by(id: params[:id])
 
-        response = lesson.as_json(include: { 
-          text_question_sets: {
-            include: { 
-              questions: {
-                only: [:id, :text]
-              }
-            }
-          }
-        })
+unless lesson
+render json: { error: 'Lesson not found' }, status: :not_found
+return
+end
 
-        latest_media_item = lesson.media_items.order(updated_at: :desc).first
-        if latest_media_item
-          response['media_items'] = latest_media_item.as_json(include: {
-            multiple_questions: {
-              include: :answers
-            }
-          })
-        else
-          response['media_items'] = {}  # Handle case when there is no latest media item
-        end
+response = {
+id: lesson.id,
+title: lesson.title,
+description: lesson.description
+}
 
-        render json: response
-      end
+# Include only the latest media item and its translations
+
+latest_media_item = lesson.media_items.order(updated_at: :desc).first
+if latest_media_item
+response['media_items'] = latest_media_item.as_json(include: {
+multiple_questions: {
+include: :answers
+},
+translations: {}
+})
+else
+response['media_items'] = {} # Return an empty object if no media items are found
+end
+
+# Include only the latest text_question_set and its questions
+
+latest_text_question_set = lesson.text_question_sets.order(updated_at: :desc).first
+if latest_text_question_set
+response['text_question_sets'] = {
+id: latest_text_question_set.id,
+text: latest_text_question_set.text,
+questions: latest_text_question_set.questions.as_json(only: [:id, :text])
+}
+else
+response['text_question_sets'] = {} # Return an empty object if no text question sets are found
+end
+
+# Test results and scores
+
+test_results = TestResult.where(user_id: current_user.id, multiple_question_id: latest_media_item&.multiple_questions&.pluck(:id))
+user_answers = UserAnswer.where(user_id: current_user.id, question_id: latest_text_question_set&.questions&.pluck(:id))
+
+response['test_results'] = test_results.map do |result|
+{
+multiple_question_id: result.multiple_question_id,
+correct_percentage: result.correct_percentage,
+wrong_percentage: result.wrong_percentage
+}
+end
+
+response['user_answers_scores'] = user_answers.includes(:answer_feedbacks).map do |answer|
+{
+question_id: answer.question_id,
+score: answer.answer_feedbacks.sum(&:score),
+comments: answer.answer_feedbacks.map(&:comment)
+}
+end
+
+render json: response
+end
 
       # POST /api/v1/lessons
       def create
@@ -119,30 +155,53 @@ module Api
       end
 
       # DELETE /api/v1/lessons/:id
-      def destroy
-        if @lesson.destroy
-          render json: { message: "Lesson and associated records deleted successfully" }, status: :ok
-        else
-          render json: { error: "Failed to delete lesson and associated records" }, status: :unprocessable_entity
-        end
-      end
+
+def destroy
+@lesson = Lesson.find_by(id: params[:id])
+
+if @lesson
+ActiveRecord::Base.transaction do # Delete associated media items
+@lesson.media_items.destroy_all
+
+      # Delete associated text question sets
+      @lesson.text_question_sets.destroy_all
+
+      # Delete the lesson
+      @lesson.destroy
+
+      # Commit the transaction
+      ActiveRecord::Base.connection.commit_db_transaction
+    end
+
+    render json: { message: "Lesson and associated records deleted successfully" }, status: :ok
+
+else
+render json: { error: "Lesson not found" }, status: :not_found
+end
+rescue ActiveRecord::RecordNotDestroyed => e
+render json: { error: "Failed to delete lesson and associated records: #{e.message}" }, status: :unprocessable_entity
+end
 
       private
 
       def authorize_teacher
         unless current_user&.teacher?
-          render json: { error: 'Unauthorized. Only teachers can create, update, or destroy lessons.' }, status: :unauthorized
+          render json: { error: 'Unauthorized. Only teachers can create lessons.' }, status: :unauthorized
         end
       end
 
+      # Use callbacks to share common setup or constraints between actions.
       def set_lesson
         @lesson = Lesson.find_by(id: params[:id])
         render json: { error: 'Lesson not found' }, status: :not_found unless @lesson
       end
 
+
+      # Only allow a trusted parameter "white list" through.
       def lesson_params
         params.require(:lesson).permit(:index, :title, :description, :completed, :score)
       end
     end
-  end
+
+end
 end
