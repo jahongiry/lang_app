@@ -1,8 +1,42 @@
 module Api
 module V1
 class LessonsController < ApplicationController
-before_action :authorize_teacher, only: [:create, :update, :destroy]
-before_action :set_lesson, only: [:show, :destroy, :update]
+      before_action :authorize_teacher, only: [:create, :update, :destroy, :reset_score]
+      before_action :set_lesson, only: [:show, :destroy, :update, :reset_score]
+
+ # POST /api/v1/lessons/:id/reset_score
+def reset_score
+  return unless set_lesson
+
+  user_id = params[:user_id]
+  if user_id.blank?
+    return render json: { error: 'User ID is required.' }, status: :bad_request
+  end
+
+  ActiveRecord::Base.transaction do
+    user_lesson = @lesson.user_lessons.find_by(user_id: user_id)
+    if user_lesson
+      # Reset the user lesson's score and completed status
+      user_lesson.update(score: 0, completed: false)
+
+      # Reset scores and counts in TestResults associated with this lesson and user
+      TestResult.where(user_id: user_id, lesson_id: @lesson.id).update_all(correct_count: 0, correct_percentage: 0, wrong_percentage: 100)
+
+      # Reset scores in AnswerFeedbacks associated with user answers for this lesson
+      UserAnswer.where(user_id: user_id, lesson_id: @lesson.id).each do |ua|
+        ua.answer_feedbacks.update_all(score: 0)
+      end
+
+      render json: { message: 'Score and related entities reset successfully.' }, status: :ok
+    else
+      render json: { error: 'User lesson not found for the specified user.' }, status: :not_found
+    end
+  end
+rescue => e
+  render json: { error: "Failed to reset scores: #{e.message}" }, status: :internal_server_error
+end
+
+
 
 # GET /api/v1/lessons
 
@@ -65,73 +99,98 @@ def index
 
         render json: response
       end
-# GET /api/v1/lessons/:id
 
 # GET /api/v1/lessons/:id
 
 def show
-lesson = Lesson.includes(media_items: { multiple_questions: :answers, translations: {} }, text_question_sets: { questions: {} }).find_by(id: params[:id])
+  lesson = Lesson.includes(media_items: { multiple_questions: :answers, translations: {} }, text_question_sets: { questions: {} }).find_by(id: params[:id])
 
-unless lesson
-render json: { error: 'Lesson not found' }, status: :not_found
-return
+  unless lesson
+    render json: { error: 'Lesson not found' }, status: :not_found
+    return
+  end
+
+  user_lesson = lesson.user_lessons.find_or_create_by(user_id: current_user.id)
+
+  response = {
+    id: lesson.id,
+    title: lesson.title,
+    description: lesson.description,
+    score: user_lesson&.score || 0,
+    completed: user_lesson&.completed || false
+  }
+
+  # Include only the latest media item and its translations
+  latest_media_item = lesson.media_items.order(updated_at: :desc).first
+  if latest_media_item
+    response['media_items'] = latest_media_item.as_json(include: {
+      multiple_questions: {
+        include: :answers
+      },
+      translations: {}
+    })
+  else
+    response['media_items'] = {} # Return an empty object if no media items are found
+  end
+
+  # Include only the latest text_question_set and its questions
+  latest_text_question_set = lesson.text_question_sets.order(updated_at: :desc).first
+  if latest_text_question_set
+    response['text_question_sets'] = {
+      id: latest_text_question_set.id,
+      text: latest_text_question_set.text,
+      questions: latest_text_question_set.questions.as_json(only: [:id, :text])
+    }
+  else
+    response['text_question_sets'] = {} # Return an empty object if no text question sets are found
+  end
+
+  # Load test results and user answers specific to current user
+  test_results = TestResult.where(user_id: current_user.id)
+  user_answers = UserAnswer.where(user_id: current_user.id)
+
+  response['test_results'] = test_results.map do |result|
+    {
+      multiple_question_id: result.multiple_question_id,
+      correct_percentage: result.correct_percentage,
+      wrong_percentage: result.wrong_percentage
+    }
+  end
+
+  
+
+  answer_feedback_scores = user_answers.includes(:answer_feedbacks).map do |answer|
+    {
+      question_id: answer.question_id,
+      score: answer.answer_feedbacks.sum(&:score),
+      comments: answer.answer_feedbacks.map(&:comment)
+    }
+  end
+
+
+  # Calculate and append average score if there are scores
+  scores = answer_feedback_scores.map { |afs| afs[:score] }
+  average_score = scores.sum.to_f / scores.size if scores.any?
+  response['user_answers_scores'] = answer_feedback_scores
+  response['average_user_answer_score'] = average_score if average_score.present?
+
+  # Calculate the overall score
+  test_score = test_results.average(:correct_percentage) || 0
+  if test_score > 0 && average_score && average_score > 0
+    calculated_score = ((test_score + average_score) / 2.0).round(2)
+    user_lesson.update(score: calculated_score)  # Update score
+    response[:score] = calculated_score
+
+    # Update 'completed' to true if score is more than 60 and it is not already marked as completed
+    if calculated_score > 60 && !user_lesson.completed
+      user_lesson.update(completed: true)
+      response[:completed] = true
+    end
+  end
+
+  render json: response
 end
 
-response = {
-id: lesson.id,
-title: lesson.title,
-description: lesson.description
-}
-
-# Include only the latest media item and its translations
-
-latest_media_item = lesson.media_items.order(updated_at: :desc).first
-if latest_media_item
-response['media_items'] = latest_media_item.as_json(include: {
-multiple_questions: {
-include: :answers
-},
-translations: {}
-})
-else
-response['media_items'] = {} # Return an empty object if no media items are found
-end
-
-# Include only the latest text_question_set and its questions
-
-latest_text_question_set = lesson.text_question_sets.order(updated_at: :desc).first
-if latest_text_question_set
-response['text_question_sets'] = {
-id: latest_text_question_set.id,
-text: latest_text_question_set.text,
-questions: latest_text_question_set.questions.as_json(only: [:id, :text])
-}
-else
-response['text_question_sets'] = {} # Return an empty object if no text question sets are found
-end
-
-
-test_results = TestResult.where(user_id: current_user.id)
-user_answers = UserAnswer.where(user_id: current_user.id)
-
-response['test_results'] = test_results.map do |result|
-{
-multiple_question_id: result.multiple_question_id,
-correct_percentage: result.correct_percentage,
-wrong_percentage: result.wrong_percentage
-}
-end
-
-response['user_answers_scores'] = user_answers.includes(:answer_feedbacks).map do |answer|
-{
-question_id: answer.question_id,
-score: answer.answer_feedbacks.sum(&:score),
-comments: answer.answer_feedbacks.map(&:comment)
-}
-end
-
-render json: response
-end
 
       # POST /api/v1/lessons
       def create

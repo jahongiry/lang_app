@@ -1,5 +1,6 @@
 class Lesson < ApplicationRecord
-  belongs_to :user
+  has_many :user_lessons
+  has_many :users, through: :user_lessons
   has_many :text_question_sets, dependent: :destroy
   has_many :media_items, dependent: :destroy
   has_many :multiple_questions, through: :media_items 

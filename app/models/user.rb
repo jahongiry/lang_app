@@ -4,7 +4,8 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :surname, presence: true
 
-  has_many :lessons, dependent: :destroy
+  has_many :user_lessons
+  has_many :lessons, through: :user_lessons
   has_many :user_answers, dependent: :destroy
 
   def teacher?

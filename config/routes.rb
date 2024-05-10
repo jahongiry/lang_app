@@ -6,6 +6,9 @@ Rails.application.routes.draw do
       end
 
       resources :lessons do
+        member do
+          post 'reset_score', to: 'lessons#reset_score'
+        end
         resources :text_question_sets
         resources :questions
         resources :media_items, only: [:index, :show, :create, :update, :destroy] do
