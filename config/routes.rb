@@ -31,12 +31,7 @@ Rails.application.routes.draw do
 
       post '/login', to: 'sessions#create'
 
-      # Adding specific routes for creating answers directly under a multiple_question
-      namespace :media_items do
-        namespace :multiple_questions do
-          post '/:multiple_question_id/answers', to: 'answers#create'
-        end
-      end
+      post '/answers', to: 'answers#create'
     end
   end
 end
