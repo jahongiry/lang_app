@@ -1,60 +1,69 @@
+# Seed multiple questions with answers
+
 # Ensure there's at least one user in the database
 user = User.first || User.create!(email: 'user@example.com', password: 'password', name: 'John', surname: 'Doe', teacher: true)
 
 # Create a lesson for the first user
 lesson = Lesson.create!(
   user: user,
-  title: "Introduction to Biology",
-  description: "A basic introduction to biological concepts.",
+  title: "Advanced Biology",
+  description: "An in-depth exploration of biological systems.",
   completed: false,
   score: 0
 )
 
-# Create media items for the lesson
+# Create a media item for the lesson
 media_item1 = MediaItem.create!(
   lesson: lesson,
   media_type: "video",
-  media_link: "https://example.com/video.mp4"
+  media_link: "https://example.com/advanced_bio.mp4"
 )
 
-# Create multiple questions with answers for the first media item
-MultipleQuestion.create!(
-  media_item: media_item1,
-  content: "What are the main organelles of a plant cell?",
-  answers_attributes: [
-    { content: "Nucleus", correct: false },
-    { content: "Mitochondria", correct: false },
-    { content: "Chloroplast", correct: true },
-    { content: "Cell wall", correct: false }
-  ]
-)
+# Define a set of questions with a mix of correct and incorrect answers
+questions_with_answers = [
+  {
+    question: "What structures are involved in photosynthesis?",
+    answers: [
+      { content: "Chloroplasts", correct: true },
+      { content: "Mitochondria", correct: false },
+      { content: "Ribosomes", correct: false },
+      { content: "Nucleus", correct: false }
+    ]
+  },
+  {
+    question: "Which organ is primarily responsible for oxygen exchange in mammals?",
+    answers: [
+      { content: "Heart", correct: false },
+      { content: "Lungs", correct: true },
+      { content: "Liver", correct: false },
+      { content: "Kidneys", correct: false }
+    ]
+  },
+  {
+    question: "What is the main function of the liver?",
+    answers: [
+      { content: "Digestion", correct: false },
+      { content: "Detoxification", correct: true },
+      { content: "Insulin production", correct: false },
+      { content: "Blood filtration", correct: true }
+    ]
+  }
+]
 
-MultipleQuestion.create!(
-  media_item: media_item1,
-  content: "What is the role of mitochondria?",
-  answers_attributes: [
-    { content: "Protein synthesis", correct: false },
-    { content: "Photosynthesis", correct: false },
-    { content: "Energy production", correct: true },
-    { content: "DNA replication", correct: false }
-  ]
-)
+# Create multiple questions and their answers in the database
+questions_with_answers.each do |qa|
+  multiple_question = MultipleQuestion.create!(
+    media_item: media_item1,
+    content: qa[:question]
+  )
 
-# Create text question sets for the lesson
-text_question_set = TextQuestionSet.create!(
-  lesson: lesson,
-  text: "Describe the process of photosynthesis."
-)
-
-# Add questions to the text question set
-Question.create!(
-  text_question_set: text_question_set,
-  text: "What is the primary function of the chloroplast?"
-)
-
-Question.create!(
-  text_question_set: text_question_set,
-  text: "What are the reactants of photosynthesis?"
-)
+  qa[:answers].each do |answer|
+    Answer.create!(
+      multiple_question: multiple_question,
+      content: answer[:content],
+      correct: answer[:correct]
+    )
+  end
+end
 
 puts "Seeds created successfully!"

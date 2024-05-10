@@ -110,10 +110,9 @@ else
 response['text_question_sets'] = {} # Return an empty object if no text question sets are found
 end
 
-# Test results and scores
 
-test_results = TestResult.where(user_id: current_user.id, multiple_question_id: latest_media_item&.multiple_questions&.pluck(:id))
-user_answers = UserAnswer.where(user_id: current_user.id, question_id: latest_text_question_set&.questions&.pluck(:id))
+test_results = TestResult.where(user_id: current_user.id)
+user_answers = UserAnswer.where(user_id: current_user.id)
 
 response['test_results'] = test_results.map do |result|
 {

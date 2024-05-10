@@ -7,10 +7,12 @@ Rails.application.routes.draw do
 
       resources :lessons do
         resources :text_question_sets
+        resources :questions
         resources :media_items, only: [:index, :show, :create, :update, :destroy] do
           resources :translations, only: [:index, :show, :create, :update, :destroy]
           resources :multiple_questions, only: [:index, :show, :create, :update, :destroy] do
             resources :answers, only: [:index, :show, :create, :update, :destroy]
+            resources :test_results, only: [:show]
           end
         end
       end
