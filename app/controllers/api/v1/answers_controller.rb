@@ -7,11 +7,6 @@ module Api
         answers = Answer.where(id: params[:questions].map { |q| q[:id] })
         multiple_questions = answers.map(&:multiple_question).uniq
 
-        if multiple_questions.length != 1
-          render json: { error: "Answers must belong to the same multiple question." }, status: :unprocessable_entity
-          return
-        end
-
         @multiple_question = multiple_questions.first
         correct_count = 0
         total_answers = params[:questions].size
