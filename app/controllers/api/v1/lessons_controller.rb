@@ -202,9 +202,17 @@ def show
 end
 
 
-      # POST /api/v1/lessons
+   # POST /api/v1/lessons
       def create
-        @lesson = current_user.lessons.build(lesson_params)
+        if current_user.nil?
+          render json: { error: 'User must be logged in to create a lesson' }, status: :unauthorized
+          return
+        end
+
+        @lesson = Lesson.new(lesson_params)
+        @lesson.user_id = current_user.id
+
+        logger.debug "Lesson before save: #{@lesson.inspect}"
 
         if @lesson.save
           render json: @lesson, status: :created
@@ -212,6 +220,7 @@ end
           render json: @lesson.errors, status: :unprocessable_entity
         end
       end
+
 
       # PATCH/PUT /api/v1/lessons/:id
       def update
@@ -267,7 +276,7 @@ end
 
       # Only allow a trusted parameter "white list" through.
       def lesson_params
-        params.require(:lesson).permit(:index, :title, :description, :completed, :score)
+        params.require(:lesson).permit(:index, :title, :description, :score)
       end
     end
 
