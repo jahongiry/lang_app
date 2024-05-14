@@ -4,39 +4,49 @@ class LessonsController < ApplicationController
       before_action :authorize_teacher, only: [:create, :update, :destroy, :reset_score]
       before_action :set_lesson, only: [:show, :destroy, :update, :reset_score]
 
- # POST /api/v1/lessons/:id/reset_score
-def reset_score
-  return unless set_lesson
 
-  user_id = params[:user_id]
-  if user_id.blank?
-    return render json: { error: 'User ID is required.' }, status: :bad_request
-  end
+    # POST /api/v1/lessons/:id/reset_score
+      def reset_score
+        user_id = params[:user_id]
 
-  ActiveRecord::Base.transaction do
-    user_lesson = @lesson.user_lessons.find_by(user_id: user_id)
-    if user_lesson
-      # Reset the user lesson's score and completed status
-      user_lesson.update(score: 0, completed: false)
+        # Find user lesson
+        user_lesson = UserLesson.find_by(user_id: user_id, lesson_id: @lesson.id)
 
-      # Reset scores and counts in TestResults associated with this lesson and user
-      TestResult.where(user_id: user_id, lesson_id: @lesson.id).update_all(correct_count: 0, correct_percentage: 0, wrong_percentage: 100)
+        # Find user answers related to the lesson's text question sets
+        user_answers = UserAnswer.joins(question: { text_question_set: :lesson })
+                                 .where(lessons: { id: @lesson.id })
+                                 .where(user_id: user_id)
 
-      # Reset scores in AnswerFeedbacks associated with user answers for this lesson
-      UserAnswer.where(user_id: user_id, lesson_id: @lesson.id).each do |ua|
-        ua.answer_feedbacks.update_all(score: 0)
+        # Find test results related to the lesson's multiple questions
+        test_results = TestResult.joins(multiple_question: :media_item)
+                                 .where(media_items: { lesson_id: @lesson.id })
+                                 .where(user_id: user_id)
+
+        # Begin a transaction to ensure atomicity
+        ActiveRecord::Base.transaction do
+          # Delete answer feedbacks associated with the user answers
+          AnswerFeedback.where(user_answer_id: user_answers.pluck(:id)).destroy_all
+
+          # Delete the user answers
+          user_answers.destroy_all
+
+          # Delete the test results
+          test_results.destroy_all
+
+          # Reset the user's lesson score and completion status
+          if user_lesson
+            user_lesson.update(score: 0, completed: false)
+          end
+
+          # Commit the transaction
+          ActiveRecord::Base.connection.commit_db_transaction
+        end
+
+        render json: { message: "User answers, test results, and scores reset successfully" }, status: :ok
+
+      rescue ActiveRecord::RecordNotDestroyed => e
+        render json: { error: "Failed to reset user answers, test results, and scores: #{e.message}" }, status: :unprocessable_entity
       end
-
-      render json: { message: 'Score and related entities reset successfully.' }, status: :ok
-    else
-      render json: { error: 'User lesson not found for the specified user.' }, status: :not_found
-    end
-  end
-rescue => e
-  render json: { error: "Failed to reset scores: #{e.message}" }, status: :internal_server_error
-end
-
-
 
 # GET /api/v1/lessons
 
