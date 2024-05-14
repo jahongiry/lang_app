@@ -2,7 +2,7 @@ module Api
 module V1
 class LessonsController < ApplicationController
       before_action :authorize_teacher, only: [:create, :update, :destroy, :reset_score]
-      before_action :set_lesson, only: [:show, :destroy, :update, :reset_score]
+      before_action :set_lesson, only: [:show, :destroy, :update, :reset_score, :student_results]
 
 
     # POST /api/v1/lessons/:id/reset_score
@@ -47,6 +47,50 @@ class LessonsController < ApplicationController
       rescue ActiveRecord::RecordNotDestroyed => e
         render json: { error: "Failed to reset user answers, test results, and scores: #{e.message}" }, status: :unprocessable_entity
       end
+
+
+      # GET /api/v1/lessons/:id/student_results?user_id=:user_id
+      def student_results
+        user_id = params[:user_id]
+
+        # Ensure @lesson is set and not nil
+        unless @lesson
+          render json: { error: 'Lesson not found' }, status: :not_found
+          return
+        end
+
+        # Find user lesson
+        user_lesson = UserLesson.find_by(user_id: user_id, lesson_id: @lesson.id)
+
+        # Load the latest test result and user answers specific to the specified user and lesson
+        latest_test_result = TestResult.where(user_id: user_id)
+                                       .order(updated_at: :desc)
+                                       .first
+
+        user_answers = UserAnswer.where(user_id: user_id)
+
+        response = {
+          user_lesson: user_lesson,
+          test_result: latest_test_result.present? ? {
+            multiple_question_id: latest_test_result.multiple_question_id,
+            correct_percentage: latest_test_result.correct_percentage,
+            wrong_percentage: latest_test_result.wrong_percentage
+          } : {},
+          user_answers: user_answers.includes(:answer_feedbacks).map do |answer|
+            {
+              question_id: answer.question_id,
+              score: answer.answer_feedbacks.sum(&:score),
+              comments: answer.answer_feedbacks.map(&:comment)
+            }
+          end
+        }
+
+        render json: response, status: :ok
+      rescue ActiveRecord::RecordNotFound => e
+        render json: { error: "Failed to find records: #{e.message}" }, status: :unprocessable_entity
+      end
+
+
 
 # GET /api/v1/lessons
 

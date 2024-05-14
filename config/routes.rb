@@ -8,6 +8,7 @@ Rails.application.routes.draw do
       resources :lessons do
         member do
           post 'reset_score', to: 'lessons#reset_score'
+          get 'student_results', to: 'lessons#student_results'
         end
         resources :text_question_sets
         resources :questions
