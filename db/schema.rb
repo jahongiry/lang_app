@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_05_10_074734) do
+ActiveRecord::Schema[7.0].define(version: 2024_05_11_064710) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -53,11 +53,13 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_10_074734) do
   end
 
   create_table "answers", force: :cascade do |t|
-    t.bigint "multiple_question_id", null: false
     t.text "content"
     t.boolean "correct"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "media_item_id", default: 1, null: false
+    t.bigint "multiple_question_id"
+    t.index ["media_item_id"], name: "index_answers_on_media_item_id"
     t.index ["multiple_question_id"], name: "index_answers_on_multiple_question_id"
   end
 
@@ -100,13 +102,15 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_10_074734) do
 
   create_table "test_results", force: :cascade do |t|
     t.bigint "user_id", null: false
-    t.bigint "multiple_question_id", null: false
     t.integer "correct_count"
     t.integer "total_questions"
     t.float "correct_percentage"
     t.float "wrong_percentage"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "media_item_id", default: 1, null: false
+    t.bigint "multiple_question_id"
+    t.index ["media_item_id"], name: "index_test_results_on_media_item_id"
     t.index ["multiple_question_id"], name: "index_test_results_on_multiple_question_id"
     t.index ["user_id"], name: "index_test_results_on_user_id"
   end
@@ -166,12 +170,13 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_10_074734) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "answer_feedbacks", "user_answers"
+  add_foreign_key "answers", "media_items"
   add_foreign_key "answers", "multiple_questions"
   add_foreign_key "lessons", "users"
   add_foreign_key "media_items", "lessons"
   add_foreign_key "multiple_questions", "media_items"
   add_foreign_key "questions", "text_question_sets"
-  add_foreign_key "test_results", "multiple_questions"
+  add_foreign_key "test_results", "media_items"
   add_foreign_key "test_results", "users"
   add_foreign_key "text_question_sets", "lessons"
   add_foreign_key "translations", "media_items"
