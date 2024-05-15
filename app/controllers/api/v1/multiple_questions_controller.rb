@@ -36,8 +36,11 @@ module Api
       end
 
       # DELETE /api/v1/lessons/:lesson_id/media_items/:media_item_id/multiple_questions/:id
-      def destroy
+     def destroy
         @multiple_question.destroy
+        render json: { message: 'Multiple question deleted successfully' }, status: :ok
+      rescue ActiveRecord::RecordNotDestroyed => e
+        render json: { error: "Failed to delete multiple question: #{e.message}" }, status: :unprocessable_entity
       end
 
       private
