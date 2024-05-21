@@ -2,6 +2,7 @@ module Api
   module V1
     class UsersController < ApplicationController
       before_action :set_user, only: [:show, :update, :destroy, :lesson_details]
+      before_action :authorize_teacher!, only: [:destroy]
 
       # GET /api/v1/users
       def index
@@ -35,11 +36,12 @@ module Api
         end
       end
 
-      # DELETE /api/v1/users/:id
+    # DELETE /api/v1/users/:id
       def destroy
         @user.destroy
-        head :no_content
+        render json: { message: 'User deleted successfully' }, status: :ok
       end
+
 
             # GET /api/v1/users/:id/lessons/:lesson_id/details
 def lesson_details
@@ -92,6 +94,12 @@ end
       def generate_token(user_id)
         secret_key_base = Rails.application.credentials.secret_key_base
         JWT.encode({ user_id: user_id }, secret_key_base)
+      end
+
+      def authorize_teacher!
+        unless current_user&.teacher? || @user == current_user
+          render json: { error: 'Unauthorized' }, status: :unauthorized
+      end
       end
     end
   end
