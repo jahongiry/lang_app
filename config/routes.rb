@@ -2,7 +2,11 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :users do
-        get 'lessons/:lesson_id/details', to: 'users#lesson_details', on: :member
+        member do
+                get 'lessons/:lesson_id/details', to: 'users#lesson_details'
+                post 'add_teacher_role', to: 'users#add_teacher_role'
+                delete 'remove_teacher_role', to: 'users#remove_teacher_role'
+              end
       end
 
       resources :lessons do

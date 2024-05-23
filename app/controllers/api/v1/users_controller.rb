@@ -1,8 +1,8 @@
 module Api
   module V1
     class UsersController < ApplicationController
-      before_action :set_user, only: [:show, :update, :destroy, :lesson_details]
-      before_action :authorize_teacher!, only: [:destroy]
+      before_action :set_user, only: [:show, :update, :destroy, :lesson_details, :add_teacher_role, :remove_teacher_role]
+      before_action :authorize_teacher!, only: [:destroy, :add_teacher_role, :remove_teacher_role]
 
       # GET /api/v1/users
       def index
@@ -80,12 +80,46 @@ def lesson_details
   end
 end
 
+        # POST /api/v1/users/:id/add_teacher_role
+      def add_teacher_role
+        puts @user
+        if @user && @user != current_user
+          if @user.update(teacher: true)
+            render json: { message: 'Teacher role added successfully' }, status: :ok
+          else
+            render json: @user.errors, status: :unprocessable_entity
+          end
+        elsif @user == current_user
+          render json: { error: 'Cannot add teacher role to yourself' }, status: :forbidden
+        else
+          render json: { error: 'User not found' }, status: :not_found
+        end
+      end
+
+      # DELETE /api/v1/users/:id/remove_teacher_role
+      def remove_teacher_role
+        if @user && @user != current_user
+          if @user.update(teacher: false)
+            render json: { message: 'Teacher role removed successfully' }, status: :ok
+          else
+            render json: @user.errors, status: :unprocessable_entity
+          end
+        elsif @user == current_user
+          render json: { error: 'Cannot remove teacher role from yourself' }, status: :forbidden
+        else
+          render json: { error: 'User not found' }, status: :not_found
+        end
+      end
+
 
       private
 
-      def set_user
-        @user = User.find(params[:id])
+       def set_user
+        @user = User.find_by(id: params[:id])
+        render json: { error: 'User not found' }, status: :not_found unless @user
       end
+
+      
 
       def user_params
         params.require(:user).permit(:email, :password, :name, :surname)
