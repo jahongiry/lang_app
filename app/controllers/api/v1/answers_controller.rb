@@ -13,7 +13,9 @@ module Api
 
         params[:questions].each do |q|
           answer = answers.find { |a| a.id == q[:id].to_i }
-          if answer.update(correct: q[:answer])
+          user_answer = UserAnswerMultiple.find_or_initialize_by(user: current_user, answer: answer, multiple_question: @multiple_question)
+
+          if user_answer.update(correct: q[:answer])
             correct_count += 1 if q[:answer]
           end
         end

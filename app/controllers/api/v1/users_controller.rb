@@ -127,7 +127,7 @@ end
 
       def generate_token(user_id)
         secret_key_base = Rails.application.credentials.secret_key_base
-        JWT.encode({ user_id: user_id }, secret_key_base)
+        JWT.encode({ user_id: user_id, exp: 24.hours.from_now.to_i }, secret_key_base, 'HS256')
       end
 
       def authorize_teacher!

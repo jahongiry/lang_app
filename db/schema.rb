@@ -1,4 +1,16 @@
-ActiveRecord::Schema[7.0].define(version: 2024_05_11_064710) do
+# This file is auto-generated from the current state of the database. Instead
+# of editing this file, please use the migrations feature of Active Record to
+# incrementally modify your database, and then regenerate this schema definition.
+#
+# This file is the source Rails uses to define your schema when running `bin/rails
+# db:schema:load`. When creating a new database, `bin/rails db:schema:load` tends to
+# be faster and is potentially less error prone than running all of your
+# migrations from scratch. Old migrations may fail to apply correctly if those
+# migrations use external dependencies or application code.
+#
+# It's strongly recommended that you check this file into your version control system.
+
+ActiveRecord::Schema[7.0].define(version: 2024_08_05_034840) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -119,6 +131,18 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_11_064710) do
     t.index ["media_item_id"], name: "index_translations_on_media_item_id"
   end
 
+  create_table "user_answer_multiples", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "answer_id", null: false
+    t.bigint "multiple_question_id", null: false
+    t.boolean "correct"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["answer_id"], name: "index_user_answer_multiples_on_answer_id"
+    t.index ["multiple_question_id"], name: "index_user_answer_multiples_on_multiple_question_id"
+    t.index ["user_id"], name: "index_user_answer_multiples_on_user_id"
+  end
+
   create_table "user_answers", force: :cascade do |t|
     t.text "text"
     t.bigint "user_id", null: false
@@ -168,6 +192,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_11_064710) do
   add_foreign_key "test_results", "users"
   add_foreign_key "text_question_sets", "lessons"
   add_foreign_key "translations", "media_items"
+  add_foreign_key "user_answer_multiples", "answers"
+  add_foreign_key "user_answer_multiples", "multiple_questions"
+  add_foreign_key "user_answer_multiples", "users"
   add_foreign_key "user_answers", "questions"
   add_foreign_key "user_answers", "users"
   add_foreign_key "user_lessons", "lessons"
