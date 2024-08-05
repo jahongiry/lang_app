@@ -20,7 +20,7 @@ Rails.application.routes.draw do
           resources :translations, only: [:index, :show, :create, :update, :destroy]
           resources :multiple_questions, only: [:index, :show, :create, :update, :destroy] do
             resources :answers, only: [:index, :show, :create, :update, :destroy]
-            resources :test_results, only: [:show]
+            resources :test_results, only: [:index, :show]
           end
         end
       end

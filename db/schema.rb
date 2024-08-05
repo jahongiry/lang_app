@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_08_05_034840) do
+ActiveRecord::Schema[7.0].define(version: 2024_08_05_054738) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -112,6 +112,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_08_05_034840) do
     t.bigint "multiple_question_id"
     t.index ["media_item_id"], name: "index_test_results_on_media_item_id"
     t.index ["multiple_question_id"], name: "index_test_results_on_multiple_question_id"
+    t.index ["user_id", "multiple_question_id"], name: "index_test_results_on_user_id_and_multiple_question_id", unique: true
     t.index ["user_id"], name: "index_test_results_on_user_id"
   end
 
