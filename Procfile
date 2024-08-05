@@ -1,1 +1,1 @@
-reset-db: DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bin/rails db:reset RAILS_ENV=production
+web: bin/rails db:migrate && bin/rails server -b 0.0.0.0 -p ${PORT:-3000} && bin/rails tailwindcss:watch
